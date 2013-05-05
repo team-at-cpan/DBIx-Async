@@ -12,6 +12,7 @@ DBIx::Async - use L<DBI> with L<IO::Async>
 
 =head1 SYNOPSIS
 
+ use feature qw(say);
  use IO::Async::Loop;
  use DBIx::Async;
  my $loop = IO::Async::Loop->new;
@@ -66,18 +67,44 @@ Where possible, L<DBI> method signatures are used.
 
 =cut
 
-use Data::Dumper;
-
 use IO::Async::Channel;
 use IO::Async::Routine;
 use Future;
 use Module::Load qw();
+use DBI;
 
 use DBIx::Async::Handle;
 
 use constant DEBUG => 0;
 
 =head2 connect
+
+Attempts to connect to the given DSN.
+
+Takes the following options:
+
+=over 4
+
+=item * $dsn - the data source name, should be something like 'dbi:SQLite:dbname=:memory:'
+
+=item * $user - username to connect as
+
+=item * $pass - password to connect with
+
+=item * $opt - any options
+
+=back
+
+Options consist of:
+
+=over 4
+
+=item * RaiseError - set this to 1
+
+=item * AutoCommit - whether to run in AutoCommit mode by default, probably works better
+if this is set to 1 as well
+
+=back
 
 Returns $self.
 
@@ -95,25 +122,9 @@ sub connect {
 	$self
 }
 
-=head2 sth_ch
-
-Returns $self.
-
-=cut
-
-sub sth_ch { shift->{sth_ch} }
-
-=head2 ret_ch
-
-Returns $self.
-
-=cut
-
-sub ret_ch { shift->{ret_ch} }
-
 =head2 dsn
 
-Returns $self.
+Returns the DSN used in the L</connect> request.
 
 =cut
 
@@ -121,7 +132,7 @@ sub dsn { shift->{dsn} }
 
 =head2 user
 
-Returns $self.
+Returns the username used in the L</connect> request.
 
 =cut
 
@@ -129,7 +140,7 @@ sub user { shift->{user} }
 
 =head2 pass
 
-Returns $self.
+Returns the password used in the L</connect> request.
 
 =cut
 
@@ -137,7 +148,7 @@ sub pass { shift->{pass} }
 
 =head2 options
 
-Returns $self.
+Returns any options that were set in the L</connect> request.
 
 =cut
 
@@ -243,6 +254,22 @@ sub worker_class_from_dsn {
 	Module::Load::load($class);
 	$class;
 }
+
+=head2 sth_ch
+
+Returns $self.
+
+=cut
+
+sub sth_ch { shift->{sth_ch} }
+
+=head2 ret_ch
+
+Returns $self.
+
+=cut
+
+sub ret_ch { shift->{ret_ch} }
 
 =head2 _add_to_loop
 

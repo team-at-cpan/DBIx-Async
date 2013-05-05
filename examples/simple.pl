@@ -6,8 +6,8 @@ use IO::Async::Loop;
 use DBIx::Async;
 my $loop = IO::Async::Loop->new;
 say 'Connecting to db';
-$loop->add(my $dbh = DBIx::Async->new(
-	'dbi:SQLite:dbname=test.sqlite3',
+$loop->add(my $dbh = DBIx::Async->connect(
+	'dbi:SQLite:dbname=:memory:',
 	'',
 	'', {
 		AutoCommit => 1,

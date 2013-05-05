@@ -7,14 +7,46 @@ use Try::Tiny;
 
 use constant DEBUG => 0;
 
+=head2 new
+
+Returns $self.
+
+=cut
+
 sub new {
 	my $class = shift;
 	bless { @_ }, $class
 }
 
+=head2 ret_ch
+
+Returns $self.
+
+=cut
+
 sub ret_ch { shift->{ret_ch} }
+
+=head2 sth_ch
+
+Returns $self.
+
+=cut
+
 sub sth_ch { shift->{sth_ch} }
+
+=head2 parent
+
+Returns $self.
+
+=cut
+
 sub parent { shift->{parent} }
+
+=head2 run
+
+Returns $self.
+
+=cut
 
 sub run {
 	my $self = shift;

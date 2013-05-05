@@ -15,7 +15,7 @@ my $dsn = 'dbi:SQLite:dbname=:memory:';
 cmpthese 1, {
 	'DBIx::Async' => sub {
 		my $loop = IO::Async::Loop->new;
-		$loop->add(my $dbh = DBIx::Async->new(
+		$loop->add(my $dbh = DBIx::Async->connect(
 			$dsn,
 			'',
 			'', {
