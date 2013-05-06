@@ -71,6 +71,7 @@ use IO::Async::Channel;
 use IO::Async::Routine;
 use Future;
 use Module::Load qw();
+use Try::Tiny;
 use DBI;
 
 use DBIx::Async::Handle;
@@ -249,9 +250,20 @@ sub worker_class_from_dsn {
 	my $self = shift;
 	my $dsn = shift;
 	my ($dbd) = $dsn =~ /^dbi:([^:]+)(?::|$)/;
-	die "Invalid DBD class: $dbd" unless $dbd eq 'SQLite';
-	my $class = 'DBIx::Async::Worker::' . $dbd;
-	Module::Load::load($class);
+	die "Invalid DBD class: $dbd" unless $dbd =~ /^[a-zA-Z0-9]+$/;
+	my $loaded;
+	my $class;
+	for my $subclass ($dbd, 'Default') {
+		last if $loaded;
+		$class = 'DBIx::Async::Worker::' . $subclass;
+		try {
+			Module::Load::load($class);
+			$loaded = 1
+		} catch {
+			warn "class load: $_\n" if DEBUG;
+		};
+	}
+	die "Could not find suitable class for $dbd" unless $loaded;
 	$class;
 }
 

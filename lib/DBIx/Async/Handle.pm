@@ -77,8 +77,8 @@ sub iterate {
 	my $step;
 	$step = sub {
 		return $f->done unless @_;
-		$code->(@_);
 		$self->$method->on_done($step);
+		$code->(@_);
 	};
 	$self->$method->on_done($step);
 	$f;

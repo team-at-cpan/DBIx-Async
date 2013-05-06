@@ -7,10 +7,11 @@ use Future::Utils qw(repeat);
 use Benchmark qw(:hireswallclock cmpthese);
 use DBI;
 
-use constant MAX_COUNT => 10000;
+use constant MAX_COUNT => 1000;
 use constant DEBUG => 0;
 
-my $dsn = 'dbi:SQLite:dbname=:memory:';
+# my $dsn = 'dbi:SQLite:dbname=:memory:';
+my $dsn = 'dbi:Pg:dbname=tom';
 
 cmpthese 1, {
 	'DBIx::Async' => sub {
@@ -28,14 +29,16 @@ cmpthese 1, {
 		$dbh->do(q{drop table if exists tmp})
 
 		# We start with a simple table definition
-		->and_then(sub { $dbh->do(q{create table tmp(id integer primary key autoincrement, content text)}) })
+		->and_then(sub { $dbh->do(q{create table tmp(id serial, content text)}) })
 		# ... put some values in it
 		->and_then(sub { $dbh->begin_work })
 		->and_then(sub {
 			my $count = 0;
-			repeat {
-				$dbh->do(q{insert into tmp(content) values ('value } . $count . q{')});
-			} while => sub { ++$count < MAX_COUNT }
+			Future->needs_all(
+				map { 
+					$dbh->do(q{insert into tmp(content) values ('value } . $_ . q{')});
+				} 0..MAX_COUNT-1
+			)
 		})
 		->and_then(sub { $dbh->commit })
 
@@ -48,7 +51,7 @@ cmpthese 1, {
 				fetchrow_hashref => sub {
 					my $row = shift;
 					my ($id) = $row->{content} =~ /^value (\d+)$/;
-					die "Too many values for $id\n" if $seen{$id}++;
+					die "Too many values for $id" if $seen{$id}++;
 				}
 			)->on_done(sub {
 				my $id = 0;
@@ -73,22 +76,25 @@ cmpthese 1, {
 			}
 		);
 
-		$dbh->do(q{PRAGMA journal_mode=WAL});
-		$dbh->do(q{PRAGMA wal_autocheckpoint=0});
-		$dbh->do(q{PRAGMA synchronous=NORMAL});
-		$dbh->sqlite_commit_hook(sub {
-			warn "Manual checkpoint...\n" if DEBUG;
-			my $sth = $dbh->prepare(q{PRAGMA wal_checkpoint(FULL)});
-			$sth->execute;
-			while(my $row = $sth->fetchrow_arrayref) {
-				warn "Checkpoint result: @$row\n" if DEBUG;
-			}
-			warn "Done\n" if DEBUG;
-			0
-		});
+		if(0) {
+			$dbh->do(q{PRAGMA journal_mode=WAL});
+			$dbh->do(q{PRAGMA wal_autocheckpoint=0});
+			$dbh->do(q{PRAGMA synchronous=NORMAL});
+			$dbh->sqlite_commit_hook(sub {
+				warn "Manual checkpoint...\n" if DEBUG;
+				my $sth = $dbh->prepare(q{PRAGMA wal_checkpoint(FULL)});
+				$sth->execute;
+				while(my $row = $sth->fetchrow_arrayref) {
+					warn "Checkpoint result: @$row\n" if DEBUG;
+				}
+				warn "Done\n" if DEBUG;
+				0
+			});
+		}
 
 		$dbh->do(q{drop table if exists tmp});
-		$dbh->do(q{create table tmp(id integer primary key autoincrement, content text)});
+		$dbh->do(q{create table tmp(id serial, content text)});
+		# $dbh->do(q{create table tmp(id integer primary key autoincrement, content text)});
 		$dbh->begin_work;
 		my $count = 0;
 		do {
@@ -101,7 +107,7 @@ cmpthese 1, {
 		my %seen;
 		while(my $row = $sth->fetchrow_hashref) {
 			my ($id) = $row->{content} =~ /^value (\d+)$/;
-			die "Too many values for $id\n" if $seen{$id}++;
+			die "Too many values for $id" if $seen{$id}++;
 		}
 		my $id = 0;
 		for (sort { $a <=> $b } keys %seen) {
