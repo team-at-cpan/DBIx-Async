@@ -7,13 +7,13 @@ use Future::Utils qw(repeat);
 use Benchmark qw(:hireswallclock cmpthese);
 use DBI;
 
-use constant MAX_COUNT => 1000;
+use constant MAX_COUNT => 2000;
 use constant DEBUG => 0;
 
-# my $dsn = 'dbi:SQLite:dbname=:memory:';
-my $dsn = 'dbi:Pg:dbname=tom';
+my $dsn = 'dbi:SQLite:dbname=:memory:';
+# my $dsn = 'dbi:Pg:dbname=tom';
 
-cmpthese 1, {
+cmpthese -5, {
 	'DBIx::Async' => sub {
 		my $loop = IO::Async::Loop->new;
 		$loop->add(my $dbh = DBIx::Async->connect(

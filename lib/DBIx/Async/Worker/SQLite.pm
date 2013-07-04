@@ -102,7 +102,7 @@ sub run {
 				status => 'fail',
 				message => 'invalid ID'
 			};
-			$sth->execute;
+			$sth->execute(@{ $op->{param} });
 			return { status => 'ok', id => "$sth" };
 		},
 		fetchrow_hashref => sub {
@@ -116,7 +116,7 @@ sub run {
 		},
 	);
 
-	if(1) {
+	if(0) {
 		$dbh->sqlite_commit_hook(sub {
 			warn "Manual checkpoint...\n" if DEBUG;
 			my $sth = $dbh->prepare(q{PRAGMA wal_checkpoint(FULL)});
@@ -129,15 +129,12 @@ sub run {
 		});
 	}
 	while(my $data = $self->sth_ch->recv) {
-		if(exists $handler{$data->{op}}) {
-			try {
-				$self->ret_ch->send($handler{$data->{op}}->($data));
-			} catch {
-				$self->ret_ch->send({ status => 'fail', message => $_ });
-			};
-		} else {
-			$self->ret_ch->send({ status => 'fail', message => 'unknown operation' });
-		}
+		try {
+			my $code = $handler{$data->{op}} or die 'unknown operation';
+			$self->ret_ch->send($handler{$data->{op}}->($data));
+		} catch {
+			$self->ret_ch->send({ status => 'fail', message => $_ });
+		};
 	}
 	warn "End of sqlite subprocess\n" if DEBUG;
 }

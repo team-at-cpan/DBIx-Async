@@ -19,11 +19,11 @@ $loop->add(my $dbh = DBIx::Async->connect(
 $dbh->do(q{DROP TABLE IF EXISTS tmp})
 
 # We start with a simple table definition
-->and_then(sub { $dbh->do(q{CREATE TABLE tmp(id integer primary key autoincrement, content text)}) })
+->then(sub { $dbh->do(q{CREATE TABLE tmp(id integer primary key autoincrement, content text)}) })
 # ... put some values in it
-->and_then(sub { $dbh->do(q{INSERT INTO tmp(content) VALUES ('some text'), ('other text') , ('more data')}) })
+->then(sub { $dbh->do(q{INSERT INTO tmp(content) VALUES ('some text'), ('other text') , ('more data')}) })
 # ... and then read them back
-->and_then(sub {
+->then(sub {
 	say "Retrieving data...";
 	my $sth = $dbh->prepare(q{SELECT * FROM tmp});
 	$sth->execute;

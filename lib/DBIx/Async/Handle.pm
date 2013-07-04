@@ -36,9 +36,10 @@ Returns $self.
 
 sub execute {
 	my $self = shift;
+	my @param = @_;
 	$self->{execute} = $self->{prepare}->and_then(sub {
 		my $id = shift->get->{id};
-		$self->dbh->queue({ op => 'execute', id => $id });
+		$self->dbh->queue({ op => 'execute', id => $id, param => \@param });
 	});
 }
 

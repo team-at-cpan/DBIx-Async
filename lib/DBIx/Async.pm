@@ -175,7 +175,6 @@ Returns $self.
 
 sub begin_work {
 	my $self = shift;
-	my $sql = shift;
 	$self->queue({ op => 'begin_work' });
 }
 
@@ -187,7 +186,6 @@ Returns $self.
 
 sub commit {
 	my $self = shift;
-	my $sql = shift;
 	$self->queue({ op => 'commit' });
 }
 

@@ -91,7 +91,7 @@ sub run {
 				status => 'fail',
 				message => 'invalid ID'
 			};
-			$sth->execute;
+			$sth->execute(@{ $op->{param} });
 			return { status => 'ok', id => "$sth" };
 		},
 		fetchrow_hashref => sub {
