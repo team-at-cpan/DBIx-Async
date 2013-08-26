@@ -1,4 +1,4 @@
-#!/usr/bin/perl 
+#!/usr/bin/env perl
 use strict;
 use warnings;
 use IO::Async::Loop;
@@ -7,7 +7,7 @@ use Future::Utils qw(repeat);
 use Benchmark qw(:hireswallclock cmpthese);
 use DBI;
 
-use constant MAX_COUNT => 2000;
+use constant MAX_COUNT => 200;
 use constant DEBUG => 0;
 
 my $dsn = 'dbi:SQLite:dbname=:memory:';
@@ -35,7 +35,7 @@ cmpthese -5, {
 		->and_then(sub {
 			my $count = 0;
 			Future->needs_all(
-				map { 
+				map {
 					$dbh->do(q{insert into tmp(content) values ('value } . $_ . q{')});
 				} 0..MAX_COUNT-1
 			)

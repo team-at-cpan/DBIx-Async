@@ -72,7 +72,6 @@ use IO::Async::Routine;
 use Future;
 use Module::Load qw();
 use Try::Tiny;
-use DBI;
 
 use DBIx::Async::Handle;
 
