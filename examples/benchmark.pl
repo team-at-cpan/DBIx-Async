@@ -7,11 +7,10 @@ use Future::Utils qw(repeat);
 use Benchmark qw(:hireswallclock cmpthese);
 use DBI;
 
-use constant MAX_COUNT => 200;
+use constant MAX_COUNT => 2000;
 use constant DEBUG => 0;
 
 my $dsn = 'dbi:SQLite:dbname=:memory:';
-# my $dsn = 'dbi:Pg:dbname=tom';
 
 cmpthese -5, {
 	'DBIx::Async' => sub {

@@ -37,8 +37,8 @@ Returns $self.
 sub execute {
 	my $self = shift;
 	my @param = @_;
-	$self->{execute} = $self->{prepare}->and_then(sub {
-		my $id = shift->get->{id};
+	$self->{execute} = $self->{prepare}->then(sub {
+		my $id = shift->{id};
 		$self->dbh->queue({ op => 'execute', id => $id, param => \@param });
 	});
 }
@@ -51,15 +51,14 @@ Returns $self.
 
 sub fetchrow_hashref {
 	my $self = shift;
-	$self->{execute}->and_then(sub {
-		my $id = shift->get->{id};
-#		warn "Fetch row with ID $id\n";
+	$self->{execute}->then(sub {
+		my $id = shift->{id};
 		$self->dbh->queue({
 			op => 'fetchrow_hashref',
 			id => $id
 		});
-	})->and_then(sub {
-		my $response = shift->get;
+	})->then(sub {
+		my $response = shift;
 		Future->new->done($response->{data} // ());
 	});
 }

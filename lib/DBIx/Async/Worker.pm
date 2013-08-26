@@ -127,16 +127,23 @@ sub fetchrow_hashref {
 	return { status => 'ok', id => "$sth", data => $data };
 }
 
+sub dbh { shift->{dbh} }
+
 sub run {
 	my $self = shift;
-	$self->connect;
-	$self->setup;
+	try {
+		$self->connect;
+		$self->setup;
+	} catch {
+		warn "Failure: $_";
+	};
 	while(my $data = $self->sth_ch->recv) {
 		try {
 			my $method = $data->{op};
 			my $code = $self->can($method) or die 'unknown operation';
 			$self->ret_ch->send($code->($self, $data));
 		} catch {
+			warn "err: $_\n";
 			$self->ret_ch->send({ status => 'fail', message => $_ });
 		};
 	}
