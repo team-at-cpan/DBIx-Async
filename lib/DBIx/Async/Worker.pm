@@ -1,11 +1,15 @@
-package
- DBIx::Async::Worker;
+package DBIx::Async::Worker;
 use strict;
 use warnings;
 
 =head1 NAME
 
-DBIx::Async::Worker - background process for L<DBI>
+DBIx::Async::Worker - background process for L<DBIx::Async>
+
+=head1 DESCRIPTION
+
+No user-serviceable parts inside. You may want to subclass this
+for specific DBD driver support though.
 
 =cut
 
