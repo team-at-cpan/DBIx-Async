@@ -6,7 +6,7 @@ use IO::Async::Loop;
 use DBIx::Async;
 my $loop = IO::Async::Loop->new;
 say 'Connecting to db';
-$loop->add(my $dbh = DBIx::Async->new(
+$loop->add(my $dbh = DBIx::Async->connect(
   'dbi:SQLite:dbname=test.sqlite3',
   '',
   '', {
@@ -16,9 +16,9 @@ $loop->add(my $dbh = DBIx::Async->new(
 ));
 $dbh->do(q{CREATE TABLE tmp(id integer primary key autoincrement, content text)})
 # ... put some values in it
-->and_then(sub { $dbh->do(q{INSERT INTO tmp(content) VALUES ('some text'), ('other text') , ('more data')}) })
+->then(sub { $dbh->do(q{INSERT INTO tmp(content) VALUES ('some text'), ('other text') , ('more data')}) })
 # ... and then read them back
-->and_then(sub {
+->then(sub {
   # obviously you'd never really use * in a query like this...
   my $sth = $dbh->prepare(q{select * from tmp});
   $sth->execute;

@@ -1,5 +1,5 @@
 package DBIx::Async;
-# ABSTRACT: use DBI with IO::Async
+# ABSTRACT: database support for IO::Async via DBI
 use strict;
 use warnings;
 use parent qw(IO::Async::Notifier);
