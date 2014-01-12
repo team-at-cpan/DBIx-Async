@@ -18,14 +18,20 @@ DBIx::Async - use L<DBI> with L<IO::Async>
 
 Wrapper for L<DBI>, for running queries much slower than usual but without blocking.
 
+C<NOTE>: This is an early release, please get in contact via email (see L</AUTHOR>
+section) or RT before relying on it for anything.
+
 =head2 PERFORMANCE
 
 Greatly lacking. See C<examples/benchmark.pl>, in one sample run the results looked
 like this:
 
-             s/iter DBIx::Async DBD::SQLite
- DBIx::Async   5.49          --        -95%
- DBD::SQLite  0.280       1861%          --
+               Rate DBIx::Async DBD::SQLite
+ DBIx::Async 1.57/s          --        -89%
+ DBD::SQLite 13.8/s        776%          --
+
+If you're doing anything more than occasional light queries, you'd probably be better
+off with blocking DBI-based code running in a fork.
 
 =head1 METHODS
 
@@ -45,7 +51,8 @@ use constant DEBUG => 0;
 
 =head2 connect
 
-Attempts to connect to the given DSN.
+Constuctor. Sets up our instance with parameters that will be used when we attempt to
+connect to the given DSN.
 
 Takes the following options:
 
@@ -72,6 +79,9 @@ if this is set to 1 as well
 
 =back
 
+C<NOTE>: Despite the name, this method does not initiate a connection. This may change in
+a future version, but if this behaviour does change this method will still return C<$self>.
+
 Returns $self.
 
 =cut
@@ -80,10 +90,15 @@ sub connect {
 	my $class = shift;
 	my ($dsn, $user, $pass, $opt) = @_;
 	my $self = bless {
-		options => $opt,
-		pass => $pass,
-		user => $user,
-		dsn => $dsn,
+		options => {
+			RaiseError => 1,
+			PrintError => 0,
+			AutoCommit => 1,
+			%{ $opt || {} },
+		},
+		pass    => $pass,
+		user    => $user,
+		dsn     => $dsn,
 	}, $class;
 	$self
 }
@@ -122,19 +137,37 @@ sub options { shift->{options} }
 
 =head2 do
 
-Returns $self.
+Runs a query with optional bind parameters. Takes the following parameters:
+
+=over 4
+
+=item * $sql - the query to run
+
+=item * $options - any options to apply (can be undef)
+
+=item * @params - the parameters to bind (can be empty)
+
+=back
+
+Returns a L<Future> which will resolve when this query completes.
 
 =cut
 
-sub do {
-	my $self = shift;
-	my $sql = shift;
-	$self->queue({ op => 'do', sql => $sql });
+sub do : method {
+	my ($self, $sql, $options, @params) = @_;
+	$self->queue({
+		op => 'do',
+		sql => $sql,
+		options => $options,
+		params => \@params,
+	});
 }
 
 =head2 begin_work
 
-Returns $self.
+Starts a transaction.
+
+Returns a L<Future> which will resolve when this transaction has started.
 
 =cut
 
@@ -145,7 +178,9 @@ sub begin_work {
 
 =head2 commit
 
-Returns $self.
+Commit the current transaction.
+
+Returns a L<Future> which will resolve when this transaction has been committed.
 
 =cut
 
@@ -154,9 +189,65 @@ sub commit {
 	$self->queue({ op => 'commit' });
 }
 
+=head2 savepoint
+
+Marks a savepoint. Takes a single parameter: the name to use for the savepoint.
+
+ $dbh->savepoint('here');
+
+Returns a L<Future> which will resolve once the savepoint has been created.
+
+=cut
+
+sub savepoint {
+	my $self = shift;
+	my $savepoint = shift;
+	$self->queue({ op => 'savepoint', savepoint => $savepoint });
+}
+
+
+=head2 release
+
+Releases a savepoint. Takes a single parameter: the name to use for the savepoint.
+
+ $dbh->release('here');
+
+This is similar to L</commit> for the work which has been completed since
+the savepoint, although the database state is not updated until the transaction
+itself is committed.
+
+Returns a L<Future> which will resolve once the savepoint has been released.
+
+=cut
+
+sub release {
+	my $self = shift;
+	my $savepoint = shift;
+	$self->queue({ op => 'release', savepoint => $savepoint });
+}
+
+=head2 rollback
+
+Rolls back this transaction. Takes an optional savepoint which
+can be used to roll back to the savepoint rather than cancelling
+the entire transaction.
+
+Returns a L<Future> which will resolve once the transaction has been
+rolled back.
+
+=cut
+
+sub rollback {
+	my $self = shift;
+	my $savepoint = shift;
+	$self->queue({ op => 'rollback', savepoint => $savepoint });
+}
+
 =head2 prepare
 
-Returns $self.
+Attempt to prepare a query.
+
+Returns the statement handle as a L<DBIx::Async::Handle> instance.
 
 =cut
 
@@ -169,16 +260,24 @@ sub prepare {
 	);
 }
 
+=head1 INTERNAL METHODS
+
+These are unlikely to be of much use in application code.
+
+=cut
+
 =head2 queue
 
-Returns $self.
+Queue a request. Used internally.
+
+Returns a L<Future>.
 
 =cut
 
 sub queue {
 	my $self = shift;
 	my ($req, $code) = @_;
-	my $f = Future->new;
+	my $f = $self->loop->new_future;
 	if(DEBUG) {
 		require Data::Dumper;
 		warn "Sending req " . Data::Dumper::Dumper($req);
@@ -196,12 +295,6 @@ sub queue {
 	);
 	$f
 }
-
-=head1 INTERNAL METHODS
-
-These are unlikely to be of much use in application code.
-
-=cut
 
 =head2 worker_class_from_dsn
 
@@ -232,7 +325,7 @@ sub worker_class_from_dsn {
 
 =head2 sth_ch
 
-Returns $self.
+The channel used for prepared statements.
 
 =cut
 
@@ -240,7 +333,7 @@ sub sth_ch { shift->{sth_ch} }
 
 =head2 ret_ch
 
-Returns $self.
+The channel which returns values.
 
 =cut
 
@@ -248,7 +341,7 @@ sub ret_ch { shift->{ret_ch} }
 
 =head2 _add_to_loop
 
-Returns $self.
+Sets things up when we are added to a loop.
 
 =cut
 
@@ -274,19 +367,42 @@ sub _add_to_loop {
 
 =head2 _remove_from_loop
 
-Returns $self.
+Doesn't do anything.
 
 =cut
 
 sub _remove_from_loop {
 	my $self = shift;
 	my ($loop) = @_;
-	warn "Removed from loop\n";
+	warn "Removed from loop\n" if DEBUG;
 }
 
 1;
 
 __END__
+
+=head1 TODO
+
+=over 4
+
+=item * Much of the L<DBI> API is not yet implemented. Fix this.
+
+=item * Provide a nicer wrapper around transactions.
+
+=item * Consider supporting L<Net::Async::PostgreSQL> and L<Net::Async::MySQL>
+natively, might lead to some performance improvements.
+
+=back
+
+=head1 SEE ALSO
+
+=over 4
+
+=item * L<DBI> - the database framework that does all the real work
+
+=item * L<Net::Async::PostgreSQL> - nonblocking interaction with PostgreSQL, not DBI compatible
+
+=back
 
 =head1 AUTHOR
 
@@ -294,5 +410,5 @@ Tom Molesworth <cpan@entitymodel.com>
 
 =head1 LICENSE
 
-Copyright Tom Molesworth 2012-2013. Licensed under the same terms as Perl itself.
+Copyright Tom Molesworth 2012-2014. Licensed under the same terms as Perl itself.
 

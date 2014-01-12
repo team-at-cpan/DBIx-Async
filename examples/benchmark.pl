@@ -28,28 +28,28 @@ cmpthese -5, {
 		$dbh->do(q{drop table if exists tmp})
 
 		# We start with a simple table definition
-		->and_then(sub { $dbh->do(q{create table tmp(id serial, content text)}) })
+		->then(sub { $dbh->do(q{create table tmp(id serial, content text)}) })
 		# ... put some values in it
-		->and_then(sub { $dbh->begin_work })
-		->and_then(sub {
+		->then(sub { $dbh->begin_work })
+		->then(sub {
 			my $count = 0;
 			Future->needs_all(
 				map {
-					$dbh->do(q{insert into tmp(content) values ('value } . $_ . q{')});
+					$dbh->do(q{insert into tmp(content) values (?)}, undef, 'value ' . $_);
 				} 0..MAX_COUNT-1
 			)
 		})
-		->and_then(sub { $dbh->commit })
+		->then(sub { $dbh->commit })
 
 		# ... and then read them back
-		->and_then(sub {
+		->then(sub {
 			my $sth = $dbh->prepare(q{select * from tmp order by id});
 			$sth->execute;
 			my %seen;
 			$sth->iterate(
 				fetchrow_hashref => sub {
 					my $row = shift;
-					my ($id) = $row->{content} =~ /^value (\d+)$/;
+					my ($id) = $row->{content} =~ /^value (\d+)$/ or die 'invalid entry found';
 					die "Too many values for $id" if $seen{$id}++;
 				}
 			)->on_done(sub {
@@ -75,10 +75,10 @@ cmpthese -5, {
 			}
 		);
 
-		if(0) {
 			$dbh->do(q{PRAGMA journal_mode=WAL});
 			$dbh->do(q{PRAGMA wal_autocheckpoint=0});
 			$dbh->do(q{PRAGMA synchronous=NORMAL});
+		if(0) {
 			$dbh->sqlite_commit_hook(sub {
 				warn "Manual checkpoint...\n" if DEBUG;
 				my $sth = $dbh->prepare(q{PRAGMA wal_checkpoint(FULL)});
@@ -97,7 +97,7 @@ cmpthese -5, {
 		$dbh->begin_work;
 		my $count = 0;
 		do {
-			$dbh->do(q{insert into tmp(content) values ('value } . $count . q{')});
+			$dbh->do(q{insert into tmp(content) values (?)}, undef, 'value ' . $count);
 		} while(++$count < MAX_COUNT);
 		$dbh->commit;
 
@@ -105,7 +105,7 @@ cmpthese -5, {
 		$sth->execute;
 		my %seen;
 		while(my $row = $sth->fetchrow_hashref) {
-			my ($id) = $row->{content} =~ /^value (\d+)$/;
+			my ($id) = $row->{content} =~ /^value (\d+)$/ or die 'incorrect value found';
 			die "Too many values for $id" if $seen{$id}++;
 		}
 		my $id = 0;
