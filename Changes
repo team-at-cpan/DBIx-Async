@@ -1,6 +1,12 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	No new features.
+
+	Bug fixes:
+	* Minimum Future version is 0.21, for ->is_done
+	* Don't assume DBD::SQLite is available (was being loaded in DBIx::Async::Worker::SQLite compilation tests)
+	* Don't special-case sqlite setup (WAL journal etc.)
 
 0.001     2014-01-12 19:09:03+00:00 Europe/London
 	Initial CPAN release

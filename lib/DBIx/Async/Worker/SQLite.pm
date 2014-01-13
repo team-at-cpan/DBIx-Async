@@ -2,24 +2,24 @@ package DBIx::Async::Worker::SQLite;
 use strict;
 use warnings;
 use parent qw(DBIx::Async::Worker);
-use DBD::SQLite;
 
 use constant DEBUG => 0;
 
+# Just a no-op, if anything this should be configurable behaviour.
 sub setup {
 	my $self = shift;
 	my $dbh = $self->dbh;
-	# This doesn't really serve any valid purpose with
-	# sqlite running in a separate process, but it
-	# can make writes more predictable.
-	warn "Enable journal mode...\n" if DEBUG;
-	$dbh->do(q{PRAGMA journal_mode=WAL});
-	warn "Disable autocheckpoint...\n" if DEBUG;
-	$dbh->do(q{PRAGMA wal_autocheckpoint=0});
-	warn "Switch to sync=NORMAL...\n" if DEBUG;
-	$dbh->do(q{PRAGMA synchronous=NORMAL});
-
 	if(0) {
+		# This doesn't really serve any valid purpose with
+		# sqlite running in a separate process, but it
+		# can make writes more predictable.
+		warn "Enable journal mode...\n" if DEBUG;
+		$dbh->do(q{PRAGMA journal_mode=WAL});
+		warn "Disable autocheckpoint...\n" if DEBUG;
+		$dbh->do(q{PRAGMA wal_autocheckpoint=0});
+		warn "Switch to sync=NORMAL...\n" if DEBUG;
+		$dbh->do(q{PRAGMA synchronous=NORMAL});
+
 		$dbh->sqlite_commit_hook(sub {
 			warn "Manual checkpoint...\n" if DEBUG;
 			my $sth = $dbh->prepare(q{PRAGMA wal_checkpoint(FULL)});
