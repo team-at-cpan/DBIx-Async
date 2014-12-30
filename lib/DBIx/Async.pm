@@ -44,11 +44,19 @@ use IO::Async::Channel;
 use IO::Async::Routine;
 use Future;
 use Module::Load qw();
-use Try::Tiny;
 
 use DBIx::Async::Handle;
 
-use constant DEBUG => 0;
+# temporary pending next release of curry
+our $_curry_weak = sub {
+	my ($invocant, $code) = splice @_, 0, 2;
+	Scalar::Util::weaken($invocant) if Scalar::Util::blessed($invocant);
+	my @args = @_;
+	sub {
+		return unless $invocant;
+		$invocant->$code(@args => @_)
+	}
+};
 
 =head2 connect
 
@@ -157,10 +165,10 @@ Returns a L<Future> which will resolve when this query completes.
 sub do : method {
 	my ($self, $sql, $options, @params) = @_;
 	$self->queue({
-		op => 'do',
-		sql => $sql,
+		op      => 'do',
+		sql     => $sql,
 		options => $options,
-		params => \@params,
+		params  => \@params,
 	});
 }
 
@@ -256,7 +264,7 @@ sub prepare {
 	my $self = shift;
 	my $sql = shift;
 	DBIx::Async::Handle->new(
-		dbh => $self,
+		dbh     => $self,
 		prepare => $self->queue({ op => 'prepare', sql => $sql }),
 	);
 }
@@ -279,14 +287,12 @@ sub queue {
 	my $self = shift;
 	my ($req, $code) = @_;
 	my $f = $self->loop->new_future;
-	if(DEBUG) {
-		require Data::Dumper;
-		warn "Sending req " . Data::Dumper::Dumper($req);
-	}
+	$self->debug_printf("Sending request [%s]", join ',', map { $_ . '=' . ($req->{$_} // '<undef>') } sort keys %$req);
+
 	$self->sth_ch->send($req);
 	$self->ret_ch->recv(
 		on_recv => sub {
-			my ( $ch, $rslt ) = @_;
+			my ($ch, $rslt) = @_;
 			if($rslt->{status} eq 'ok') {
 				$f->done($rslt);
 			} else {
@@ -299,7 +305,18 @@ sub queue {
 
 =head2 worker_class_from_dsn
 
-Returns $self.
+Attempts to locate a suitable worker subclass, given a DSN.
+
+For example:
+
+ $dbh->worker_class_from_dsn('dbi:SQLite:memory')
+
+should return 'DBIx::Async::Worker::SQLite'.
+
+Note that this method will load the class if it is not already
+present.
+
+Returns the class as a string.
 
 =cut
 
@@ -308,16 +325,20 @@ sub worker_class_from_dsn {
 	my $dsn = shift;
 	my ($dbd) = $dsn =~ /^dbi:([^:]+)(?::|$)/;
 	die "Invalid DBD class: $dbd" unless $dbd =~ /^[a-zA-Z0-9]+$/;
+
 	my $loaded;
 	my $class;
 	for my $subclass ($dbd, 'Default') {
 		last if $loaded;
 		$class = 'DBIx::Async::Worker::' . $subclass;
-		try {
+		eval {
 			Module::Load::load($class);
 			$loaded = 1
-		} catch {
-			warn "class load: $_\n" if DEBUG;
+		} or do {
+			# TODO we need proper error handling here,
+			# but some DSNs won't have a related worker
+			# class, default to something perhaps?
+			warn "Failed to load: $@"
 		};
 	}
 	die "Could not find suitable class for $dbd" unless $loaded;
@@ -358,24 +379,23 @@ sub _add_to_loop {
 		channels_in  => [ $self->{sth_ch} ],
 		channels_out => [ $self->{ret_ch} ],
 		code => sub { $worker->run },
-		on_finish => sub {
-			print "The routine aborted early - $_[-1]\n";
-			$self->loop->stop;
-		},
+		on_finish => $self->$_curry_weak(sub {
+			my $self = shift;
+			$self->debug_printf("The routine aborted early with [%s]", $_[-1]);
+		}),
 	);
-	$loop->add($routine);
+	$self->add_child($routine);
 }
 
 =head2 _remove_from_loop
 
-Doesn't do anything.
+Doesn't do anything yet.
 
 =cut
 
 sub _remove_from_loop {
 	my $self = shift;
 	my ($loop) = @_;
-	warn "Removed from loop\n" if DEBUG;
 }
 
 1;
@@ -407,7 +427,7 @@ natively, might lead to some performance improvements.
 
 =head1 AUTHOR
 
-Tom Molesworth <cpan@entitymodel.com>
+Tom Molesworth <cpan@perlsite.co.uk>
 
 =head1 LICENSE
 
