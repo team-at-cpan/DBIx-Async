@@ -14,7 +14,6 @@ for specific DBD driver support though.
 =cut
 
 use DBI;
-use Try::Tiny;
 
 my %VALID_METHODS;
 BEGIN {
@@ -58,11 +57,14 @@ sub sth_ch { shift->{sth_ch} }
 
 =head2 parent
 
-Returns $self.
 
 =cut
 
 sub parent { shift->{parent} }
+
+=head2 connect
+
+=cut
 
 sub connect {
 	my $self = shift;
@@ -75,6 +77,10 @@ sub connect {
 	$self;
 }
 
+=head2 do
+
+=cut
+
 sub do : method {
 	my $self = shift;
 	my $op = shift;
@@ -86,12 +92,20 @@ sub do : method {
 	return { status => 'ok' };
 }
 
+=head2 begin_work
+
+=cut
+
 sub begin_work {
 	my $self = shift;
 	my $op = shift;
 	$self->dbh->begin_work;
 	return { status => 'ok' };
 }
+
+=head2 commit
+
+=cut
 
 sub commit {
 	my $self = shift;
@@ -100,12 +114,20 @@ sub commit {
 	return { status => 'ok' };
 }
 
+=head2 savepoint
+
+=cut
+
 sub savepoint {
 	my $self = shift;
 	my $op = shift;
 	$self->dbh->do(q{savepoint} . (defined $op->{savepoint} ? ' ' . $self->dbh->quote_identifier($op->{savepoint}) : ''));
 	return { status => 'ok' };
 }
+
+=head2 release
+
+=cut
 
 sub release {
 	my $self = shift;
@@ -114,12 +136,20 @@ sub release {
 	return { status => 'ok' };
 }
 
+=head2 rollback
+
+=cut
+
 sub rollback {
 	my $self = shift;
 	my $op = shift;
 	$self->dbh->rollback;
 	return { status => 'ok' };
 }
+
+=head2 prepare
+
+=cut
 
 sub prepare {
 	my $self = shift;
@@ -128,6 +158,10 @@ sub prepare {
 	$sth{$sth} = $sth;
 	return { status => 'ok', id => "$sth" };
 }
+
+=head2 finish
+
+=cut
 
 sub finish {
 	my $self = shift;
@@ -140,6 +174,10 @@ sub finish {
 	return { status => 'ok', id => "$sth" };
 }
 
+=head2 execute
+
+=cut
+
 sub execute {
 	my $self = shift;
 	my $op = shift;
@@ -150,6 +188,10 @@ sub execute {
 	$sth->execute(@{ $op->{param} });
 	return { status => 'ok', id => "$sth" };
 }
+
+=head2 fetchrow_hashref
+
+=cut
 
 sub fetchrow_hashref {
 	my $self = shift;
@@ -162,22 +204,32 @@ sub fetchrow_hashref {
 	return { status => 'ok', id => "$sth", data => $data };
 }
 
+=head2 dbh
+
+=cut
+
 sub dbh { shift->{dbh} }
+
+=head2 run
+
+=cut
 
 sub run {
 	my $self = shift;
-	try {
+	eval {
 		$self->connect;
 		$self->setup;
-	} catch {
-		warn "Failure: $_";
+		1
+	} or do {
+		warn "Failure: $@";
 	};
 	while(my $data = $self->sth_ch->recv) {
-		try {
+		eval {
 			my $method = $data->{op};
 			my $code = $self->can($method) or die 'unknown operation';
 			$self->ret_ch->send($code->($self, $data));
-		} catch {
+			1
+		} or do {
 			# warn "err: $_\n";
 			$self->ret_ch->send({ status => 'fail', message => $_ });
 		};

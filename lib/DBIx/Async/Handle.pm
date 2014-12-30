@@ -1,4 +1,5 @@
 package DBIx::Async::Handle;
+
 use strict;
 use warnings;
 
@@ -63,6 +64,7 @@ sub finish {
 	my $self = shift;
 	my @param = @_;
 	die "execute has not yet completed?" unless $self->{execute}->is_ready;
+
 	$self->{execute}->then(sub {
 		my $id = shift->{id};
 		$self->dbh->queue({ op => 'finish', id => $id });
@@ -143,7 +145,7 @@ __END__
 
 =head1 AUTHOR
 
-Tom Molesworth <cpan@entitymodel.com>
+Tom Molesworth <cpan@perlsite.co.uk>
 
 =head1 LICENSE
 
