@@ -24,8 +24,14 @@ cmpthese -5, {
 			}
 		));
 
-		# Clean up if this isn't our first run
-		$dbh->do(q{drop table if exists tmp})
+		Future->needs_all(
+			$dbh->do(q{PRAGMA journal_mode=WAL}),
+			$dbh->do(q{PRAGMA wal_autocheckpoint=0}),
+			$dbh->do(q{PRAGMA synchronous=NORMAL}),
+
+			# Clean up if this isn't our first run
+			$dbh->do(q{drop table if exists tmp}),
+		)
 
 		# We start with a simple table definition
 		->then(sub { $dbh->do(q{create table tmp(id serial, content text)}) })
