@@ -2,9 +2,10 @@ package DBIx::Async;
 # ABSTRACT: database support for IO::Async via DBI
 use strict;
 use warnings;
+
 use parent qw(IO::Async::Notifier);
 
-our $VERSION = '0.002';
+our $VERSION = '0.003';
 
 =head1 NAME
 
