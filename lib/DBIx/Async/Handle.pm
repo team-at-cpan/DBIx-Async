@@ -15,6 +15,10 @@ behave something like L<DBI>'s statement handles. Where they don't,
 this is either a limitation of the async interface or a bug. Please
 report if the latter.
 
+=cut
+
+use Variable::Disposition qw(retain_future);
+
 =head1 METHODS
 
 =cut
@@ -63,9 +67,9 @@ Returns a L<Future> which will resolve when the statement is finished.
 sub finish {
 	my $self = shift;
 	my @param = @_;
-	die "execute has not yet completed?" unless $self->{execute}->is_ready;
+	die "execute has not yet completed?" unless $self->{execute} && $self->{execute}->is_ready;
 
-	$self->{execute}->then(sub {
+	retain_future $self->{execute}->then(sub {
 		my $id = shift->{id};
 		$self->dbh->queue({ op => 'finish', id => $id });
 	});
@@ -83,7 +87,7 @@ a L<Future> which will resolve with the requested hashref.
 sub fetchrow_hashref {
 	my $self = shift;
 	die "fetch on a handle which has not been executed" unless $self->{execute};
-	$self->{execute}->then(sub {
+	retain_future $self->{execute}->then(sub {
 		my $id = shift->{id};
 		$self->dbh->queue({
 			op => 'fetchrow_hashref',
@@ -128,7 +132,7 @@ sub iterate {
 		$code->(@_);
 	};
 	$self->$method->on_done($step);
-	$f;
+	retain_future $f;
 }
 
 1;

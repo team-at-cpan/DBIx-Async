@@ -2,8 +2,10 @@
 use strict;
 use warnings;
 use feature qw(say);
+
 use IO::Async::Loop;
 use DBIx::Async;
+
 my $loop = IO::Async::Loop->new;
 say 'Connecting to db';
 $loop->add(my $dbh = DBIx::Async->connect(
@@ -35,11 +37,7 @@ $dbh->do(q{DROP TABLE IF EXISTS tmp})
 	);
 })->on_done(sub {
 	say "Query complete";
-	$loop->stop;
 })->on_fail(sub {
 	warn "Failure: @_\n"
-});
-
-$loop->run;
-
+})->get;
 

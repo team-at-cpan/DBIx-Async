@@ -45,6 +45,8 @@ use IO::Async::Routine;
 use Future;
 use Module::Load qw();
 
+use Variable::Disposition qw(retain_future);
+
 use DBIx::Async::Handle;
 
 # temporary pending next release of curry
@@ -300,7 +302,7 @@ sub queue {
 			}
 		}
 	);
-	$f
+	retain_future $f;
 }
 
 =head2 worker_class_from_dsn
