@@ -4,8 +4,11 @@ Revision history for {{$dist->name}}
 	No new features.
 
 	Bug fixes:
-	* Clean up some debugging output, use ->debug_printf to tie in with existing
-	IO::Async debugging system
+	* Futures returned are also retained locally, allowing things to work in void context
+	* Clean up some debugging output, use ->debug_printf to tie in with existing IO::Async debugging system
+
+	Dependencies:
+	* Uses Variable::Disposition for retain_future
 
 0.002     2014-01-13 09:34:38+00:00 Europe/London
 	No new features.
