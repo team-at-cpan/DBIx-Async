@@ -228,7 +228,10 @@ sub run {
 			1
 		} or do {
 			# warn "err: $_\n";
-			$self->ret_ch->send({ status => 'fail', message => $_ });
+			$self->ret_ch->send({
+				status => 'fail',
+				message => $@
+			});
 		};
 	}
 }
