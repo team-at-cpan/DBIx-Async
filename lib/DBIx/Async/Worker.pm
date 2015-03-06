@@ -1,4 +1,5 @@
 package DBIx::Async::Worker;
+
 use strict;
 use warnings;
 

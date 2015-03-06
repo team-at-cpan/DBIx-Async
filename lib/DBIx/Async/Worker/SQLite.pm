@@ -1,6 +1,8 @@
 package DBIx::Async::Worker::SQLite;
+
 use strict;
 use warnings;
+
 use parent qw(DBIx::Async::Worker);
 
 use constant DEBUG => 0;

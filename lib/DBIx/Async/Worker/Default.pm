@@ -1,6 +1,8 @@
 package DBIx::Async::Worker::Default;
+
 use strict;
 use warnings;
+
 use parent qw(DBIx::Async::Worker);
 
 1;

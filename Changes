@@ -1,6 +1,9 @@
 Revision history for {{$dist->name}}
 
 {{$NEXT}}
+	No new features.
+
+	Bug fixes:
 	* Clean up some debugging output, use ->debug_printf to tie in with existing
 	IO::Async debugging system
 
