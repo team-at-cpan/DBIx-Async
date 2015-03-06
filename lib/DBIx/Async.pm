@@ -298,7 +298,7 @@ sub queue {
 			if($rslt->{status} eq 'ok') {
 				$f->done($rslt);
 			} else {
-				$f->fail($rslt->{message});
+				$f->fail($rslt->{message} // 'unknown exception');
 			}
 		}
 	);

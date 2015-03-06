@@ -7,7 +7,7 @@ use DBIx::Async;
 my $loop = IO::Async::Loop->new;
 say 'Connecting to db';
 $loop->add(my $dbh = DBIx::Async->connect(
-  'dbi:SQLite:dbname=test.sqlite3',
+  'dbi:SQLite:dbname=:memory:',
   '',
   '', {
     AutoCommit => 1,
@@ -33,8 +33,6 @@ $dbh->do(q{CREATE TABLE tmp(id integer primary key autoincrement, content text)}
   );
 })->on_done(sub {
   say "Query complete";
-  $loop->stop;
-})->on_fail(sub { warn "Failure: @_\n" });
-$loop->run;
+})->on_fail(sub { warn "Failure: @_\n" })->get;
 
 
