@@ -42,15 +42,11 @@ sub new { my $class = shift; bless { @_ }, $class }
 
 =head2 ret_ch
 
-Returns $self.
-
 =cut
 
 sub ret_ch { shift->{ret_ch} }
 
 =head2 sth_ch
-
-Returns $self.
 
 =cut
 
