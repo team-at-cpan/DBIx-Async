@@ -332,6 +332,7 @@ sub worker_class_from_dsn {
 	my $class;
 	for my $subclass ($dbd, 'Default') {
 		last if $loaded;
+
 		$class = 'DBIx::Async::Worker::' . $subclass;
 		eval {
 			Module::Load::load($class);
